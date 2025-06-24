@@ -1,0 +1,20 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/main.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/loading.html"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production.environment]
+  NODE_VERSION = "18"
