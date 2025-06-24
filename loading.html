@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRISHKO - Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #001122 0%, #003366 25%, #0066aa 50%, #0099dd 75%, #66ccff 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: oceanWave 6s ease-in-out infinite;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(102, 204, 255, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 153, 221, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(0, 102, 170, 0.2) 0%, transparent 50%);
+            animation: bubbleFloat 8s ease-in-out infinite;
+        }
+
+        @keyframes oceanWave {
+            0%, 100% { 
+                background: linear-gradient(135deg, #001122 0%, #003366 25%, #0066aa 50%, #0099dd 75%, #66ccff 100%);
+            }
+            33% { 
+                background: linear-gradient(135deg, #002244 0%, #004488 25%, #0077cc 50%, #00aaee 75%, #77ddff 100%);
+            }
+            66% { 
+                background: linear-gradient(135deg, #000f1a 0%, #002244 25%, #005588 50%, #0088cc 75%, #55bbff 100%);
+            }
+        }
+
+        @keyframes bubbleFloat {
+            0%, 100% { transform: translateY(0px) scale(1); opacity: 0.8; }
+            50% { transform: translateY(-20px) scale(1.1); opacity: 1; }
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }        .loading-logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(145deg, #ffffff 0%, #e8f4fd 100%);
+            border: 4px solid rgba(102, 204, 255, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            box-shadow: 
+                0 20px 40px rgba(0, 51, 102, 0.4),
+                inset 0 5px 15px rgba(255, 255, 255, 0.3);
+            animation: float 3s ease-in-out infinite, glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-20px) scale(1.05); }
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 
+                0 20px 40px rgba(0, 51, 102, 0.4),
+                inset 0 5px 15px rgba(255, 255, 255, 0.3),
+                0 0 30px rgba(102, 204, 255, 0.4); }
+            100% { box-shadow: 
+                0 25px 50px rgba(0, 51, 102, 0.6),
+                inset 0 5px 15px rgba(255, 255, 255, 0.3),
+                0 0 50px rgba(102, 204, 255, 0.8); }
+        }
+
+        .fish-icon {
+            width: 70px;
+            height: 42px;
+            background: linear-gradient(45deg, #2E86AB, #4FC3F7);
+            border-radius: 35px 14px 35px 14px;
+            position: relative;
+        }
+
+        .fish-icon::after {
+            content: '';
+            position: absolute;
+            right: -14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid #4FC3F7;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+        }
+
+        .loading-text {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .loading-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-height: 700px) {
+            .loading-logo { width: 90px; height: 90px; }
+            .loading-text { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-content">
+        <div class="loading-logo">
+            <div class="fish-icon"></div>
+        </div>
+        <div class="loading-text">FRISHKO</div>
+        <div class="loading-subtitle">Smart Fish Freshness Detection</div>
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // Auto-advance to main page after 3 seconds
+        setTimeout(() => {
+            window.location.href = 'main.html';
+        }, 3000);
+    </script>
+</body>
+</html>
