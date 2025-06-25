@@ -110,6 +110,9 @@
             position: relative;
             z-index: 1;
             text-shadow: 1px 1px 4px rgba(0, 51, 102, 0.6);
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .timer-display {
@@ -224,6 +227,10 @@
     <script>
         let warmupTimer = null;
         let warmupTime = 0;
+        let freshnessMonitor = null;
+        let freshnessValue = 0;
+        let isMonitoring = false;
+        const FRESHNESS_THRESHOLD = 75; // Alert threshold (0-100 scale)
 
         function startWarmup() {
             if (warmupTimer) return; // Prevent multiple timers
@@ -244,14 +251,73 @@
                     document.getElementById('timerDisplay').textContent = '✓ READY';
                     document.getElementById('instructionText').textContent = 'Device is ready! Place fish sample in the device';
                     
-                    // Auto-show alert after 3 seconds (simulate detection)
+                    // Start freshness monitoring after 2 seconds
                     setTimeout(() => {
-                        window.location.href = 'alert.html';
-                    }, 3000);
+                        startFreshnessMonitoring();
+                    }, 2000);
                 }
                 
                 warmupTime--;
             }, 1000);
+        }
+
+        function startFreshnessMonitoring() {
+            if (isMonitoring) return;
+            
+            isMonitoring = true;
+            freshnessValue = 0;
+            document.getElementById('instructionText').textContent = 'Analyzing fish freshness...';
+            
+            freshnessMonitor = setInterval(() => {
+                // Simulate increasing freshness reading (higher = less fresh)
+                freshnessValue += Math.random() * 5 + 2; // Random increment between 2-7
+                
+                // Display the freshness value
+                const displayValue = Math.min(Math.floor(freshnessValue), 100);
+                document.getElementById('timerDisplay').textContent = displayValue;
+                document.getElementById('timerDisplay').style.color = getFreshnessColor(displayValue);
+                
+                // Update instruction text based on freshness level
+                if (displayValue < 30) {
+                    document.getElementById('instructionText').textContent = 'Freshness Level: EXCELLENT';
+                    document.getElementById('instructionText').style.color = '#66ff66';
+                } else if (displayValue < 50) {
+                    document.getElementById('instructionText').textContent = 'Freshness Level: GOOD';
+                    document.getElementById('instructionText').style.color = '#99ff99';
+                } else if (displayValue < 70) {
+                    document.getElementById('instructionText').textContent = 'Freshness Level: FAIR';
+                    document.getElementById('instructionText').style.color = '#ffff66';
+                } else if (displayValue < FRESHNESS_THRESHOLD) {
+                    document.getElementById('instructionText').textContent = 'Freshness Level: POOR';
+                    document.getElementById('instructionText').style.color = '#ff9966';
+                }
+                
+                // Check if threshold reached
+                if (freshnessValue >= FRESHNESS_THRESHOLD) {
+                    clearInterval(freshnessMonitor);
+                    freshnessMonitor = null;
+                    isMonitoring = false;
+                    
+                    // Show critical warning
+                    document.getElementById('timerDisplay').textContent = '⚠ ' + Math.floor(freshnessValue);
+                    document.getElementById('timerDisplay').style.color = '#ff4444';
+                    document.getElementById('instructionText').textContent = 'CRITICAL: Fish not fresh!';
+                    document.getElementById('instructionText').style.color = '#ff4444';
+                    
+                    // Navigate to alert page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'alert.html';
+                    }, 2000);
+                }
+            }, 500); // Update every 500ms for smoother animation
+        }
+
+        function getFreshnessColor(value) {
+            if (value < 30) return '#66ff66'; // Green - Excellent
+            if (value < 50) return '#99ff99'; // Light Green - Good
+            if (value < 70) return '#ffff66'; // Yellow - Fair
+            if (value < 75) return '#ff9966'; // Orange - Poor
+            return '#ff4444'; // Red - Critical
         }
     </script>
 </body>
