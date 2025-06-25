@@ -4,17 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FRISHKO - Main</title>
+    <link rel="stylesheet" href="water-ripple.css">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }        body {
+        }
+
+        body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             height: 100vh;
             width: 100vw;
             margin: 0;
-            background: linear-gradient(180deg, #001a33 0%, #003366 20%, #0066aa 40%, #0099dd 60%, #33aaff 80%, #66ccff 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -26,27 +28,22 @@
             overflow: hidden;
         }
 
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 15% 85%, rgba(102, 204, 255, 0.2) 0%, transparent 40%),
-                radial-gradient(circle at 85% 15%, rgba(0, 153, 221, 0.2) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(0, 102, 170, 0.1) 0%, transparent 30%);
-            animation: underwaterFlow 10s ease-in-out infinite;
-            z-index: 0;
+        /* Main app container with glassmorphism */
+        .main-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 30px;
+            max-width: 380px;
+            width: 100%;
+            position: relative;
+            z-index: 5;
         }
 
-        @keyframes underwaterFlow {
-            0%, 100% { transform: translateX(0) translateY(0); }
-            25% { transform: translateX(10px) translateY(-5px); }
-            50% { transform: translateX(-5px) translateY(10px); }
-            75% { transform: translateX(-10px) translateY(-5px); }
-        }        .main-logo {
+        .main-logo {
             width: 180px;
             height: 180px;
             background: linear-gradient(145deg, #ffffff 0%, #e8f4fd 100%);
@@ -91,26 +88,9 @@
                     inset 0 8px 20px rgba(255, 255, 255, 0.3),
                     0 0 50px rgba(102, 204, 255, 0.7);
             }
-        }        .main-fish-icon {
-            width: 120px;
-            height: 72px;
-            background: linear-gradient(45deg, #1a4480, #3366cc);
-            border-radius: 60px 24px 60px 24px;
-            position: relative;
         }
 
-        .main-fish-icon::after {
-            content: '';
-            position: absolute;
-            right: -24px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            border-left: 30px solid #3366cc;
-            border-top: 18px solid transparent;
-            border-bottom: 18px solid transparent;
-        }        .app-title {
+        .app-title {
             font-size: 36px;
             font-weight: bold;
             color: #ffffff;
@@ -155,54 +135,83 @@
             text-shadow: 1px 1px 4px rgba(0, 51, 102, 0.6);
         }
 
+        /* Updated navigation buttons */
         .nav-buttons {
             position: fixed;
-            bottom: 15px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 8px;
+            gap: 12px;
             z-index: 1000;
-        }        .nav-btn {
+            padding: 10px 15px;
+            background: rgba(0, 51, 102, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 20px;
+            border: 1px solid rgba(102, 204, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-btn {
             padding: 8px 15px;
             background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(102, 204, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 15px;
-            color: #b3e0ff;
+            color: white;
             cursor: pointer;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
             transition: all 0.3s ease;
             text-decoration: none;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .nav-btn:hover {
             background: rgba(102, 204, 255, 0.3);
             color: white;
-            border-color: #66ccff;
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo-image {
+            width: 110px;
+            height: auto;
+            /* Adjust size as needed */
         }
 
         @media (max-height: 700px) {
             .main-logo { width: 140px; height: 140px; margin-bottom: 20px; }
             .app-title { font-size: 28px; margin-bottom: 10px; }
             .timer-display { font-size: 36px; margin: 10px 0; }
+            .main-container { padding: 20px; }
         }
 
         @media (max-height: 600px) {
             .nav-buttons { bottom: 10px; }
             body { padding: 15px; }
+            .main-logo { width: 120px; height: 120px; }
+            .logo-image { width: 80px; }
         }
     </style>
 </head>
 <body>
-    <div class="app-title">FRISHKO</div>
-    <div class="main-logo" onclick="startWarmup()">
-        <div class="main-fish-icon"></div>
+    <div class="water-background">
+        <div class="water-waves"></div>
     </div>
-    <div class="app-subtitle">Tap the logo to start device warm-up</div>
-    <div class="timer-display" id="timerDisplay"></div>
-    <div class="instruction-text" id="instructionText">Device ready for testing</div>
+    
+    <div class="main-container">
+        <div class="app-title">FRISHKO</div>
+        <div class="main-logo" onclick="startWarmup()">
+            <img src="images/frishko-logo.png" alt="FRISHKO Logo" class="logo-image">
+        </div>
+        <div class="app-subtitle">Tap the logo to start device warm-up</div>
+        <div class="timer-display" id="timerDisplay"></div>
+        <div class="instruction-text" id="instructionText">Device ready for testing</div>
+    </div>
 
     <!-- Navigation -->
     <div class="nav-buttons">
@@ -211,6 +220,7 @@
         <a href="alert.html" class="nav-btn">Alert</a>
     </div>
 
+    <script src="water-effect.js"></script>
     <script>
         let warmupTimer = null;
         let warmupTime = 0;
