@@ -1,0 +1,210 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+
+// Initialize LCD (address 0x27 for most I2C modules)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Software serial for communication with NodeMCU
+SoftwareSerial esp8266(0, 1); // RX, TX
+
+// Pin definitions
+const int MQ135_ANALOG = A0;
+const int MQ135_DIGITAL = 2;
+const int BUZZER_PIN = 3;
+
+// Variables
+int gasValue = 0;
+int freshnessLevel = 0;
+bool alertTriggered = false;
+unsigned long lastReading = 0;
+unsigned long lastSend = 0;
+const unsigned long readingInterval = 1000; // Read every 1 second
+const unsigned long sendInterval = 2000;    // Send to ESP every 2 seconds
+
+// Calibration values (adjust based on your environment)
+const int FRESH_THRESHOLD = 200;  // Below this = fresh
+const int SPOILED_THRESHOLD = 600; // Above this = spoiled
+
+void setup() {
+  Serial.begin(9600);
+  esp8266.begin(9600);
+  
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  
+  // Initialize pins
+  pinMode(MQ135_DIGITAL, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  
+  // Startup message
+  lcd.setCursor(0, 0);
+  lcd.print("FRISHKO DEVICE");
+  lcd.setCursor(0, 1);
+  lcd.print("Initializing...");
+  delay(2000);
+  
+  // Warm up sensor
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Warming up...");
+  
+  for(int i = 30; i > 0; i--) {
+    lcd.setCursor(0, 1);
+    lcd.print("Time: ");
+    lcd.print(i);
+    lcd.print("s  ");
+    delay(1000);
+  }
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ready for test");
+  
+  Serial.println("FRISHKO Device Ready");
+}
+
+void loop() {
+  unsigned long currentTime = millis();
+  
+  // Read sensor data
+  if (currentTime - lastReading >= readingInterval) {
+    readSensor();
+    updateDisplay();
+    checkFreshness();
+    lastReading = currentTime;
+  }
+  
+  // Send data to ESP8266
+  if (currentTime - lastSend >= sendInterval) {
+    sendDataToESP();
+    lastSend = currentTime;
+  }
+  
+  // Check for commands from ESP8266
+  if (esp8266.available()) {
+    String command = esp8266.readString();
+    command.trim();
+    processESPCommand(command);
+  }
+  
+  delay(100);
+}
+
+void readSensor() {
+  gasValue = analogRead(MQ135_ANALOG);
+  
+  // Convert to freshness level (0-100 scale)
+  if (gasValue <= FRESH_THRESHOLD) {
+    freshnessLevel = map(gasValue, 0, FRESH_THRESHOLD, 0, 30);
+  } else if (gasValue <= SPOILED_THRESHOLD) {
+    freshnessLevel = map(gasValue, FRESH_THRESHOLD, SPOILED_THRESHOLD, 30, 75);
+  } else {
+    freshnessLevel = map(gasValue, SPOILED_THRESHOLD, 1023, 75, 100);
+    freshnessLevel = min(freshnessLevel, 100);
+  }
+  
+  Serial.print("Gas Value: ");
+  Serial.print(gasValue);
+  Serial.print(" | Freshness: ");
+  Serial.println(freshnessLevel);
+}
+
+void updateDisplay() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Fresh: ");
+  lcd.print(freshnessLevel);
+  lcd.print("%");
+  
+  lcd.setCursor(0, 1);
+  if (freshnessLevel < 30) {
+    lcd.print("Status: FRESH");
+  } else if (freshnessLevel < 50) {
+    lcd.print("Status: GOOD");
+  } else if (freshnessLevel < 70) {
+    lcd.print("Status: FAIR");
+  } else if (freshnessLevel < 75) {
+    lcd.print("Status: POOR");
+  } else {
+    lcd.print("Status: SPOILED");
+  }
+}
+
+void checkFreshness() {
+  if (freshnessLevel >= 75 && !alertTriggered) {
+    triggerAlert();
+    alertTriggered = true;
+  } else if (freshnessLevel < 70) {
+    alertTriggered = false;
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
+
+void triggerAlert() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("*** ALERT ***");
+  lcd.setCursor(0, 1);
+  lcd.print("FISH SPOILED!");
+  
+  // Sound buzzer pattern
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(200);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(200);
+  }
+  
+  Serial.println("ALERT: Fish is spoiled!");
+}
+
+void sendDataToESP() {
+  // Send JSON data to ESP8266
+  String data = "{\"freshness\":" + String(freshnessLevel) + 
+                ",\"gas\":" + String(gasValue) + 
+                ",\"alert\":" + String(alertTriggered) + "}";
+  esp8266.println(data);
+}
+
+void processESPCommand(String command) {
+  if (command == "GET_STATUS") {
+    sendDataToESP();
+  } else if (command == "RESET_ALERT") {
+    alertTriggered = false;
+    digitalWrite(BUZZER_PIN, LOW);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Alert Reset");
+    delay(1000);
+  } else if (command == "CALIBRATE") {
+    calibrateSensor();
+  }
+}
+
+void calibrateSensor() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Calibrating...");
+  lcd.setCursor(0, 1);
+  lcd.print("Clean air only");
+  
+  delay(5000);
+  
+  int baseValue = 0;
+  for (int i = 0; i < 10; i++) {
+    baseValue += analogRead(MQ135_ANALOG);
+    delay(100);
+  }
+  baseValue /= 10;
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Base: ");
+  lcd.print(baseValue);
+  lcd.setCursor(0, 1);
+  lcd.print("Calibrated!");
+  
+  delay(2000);
+}
