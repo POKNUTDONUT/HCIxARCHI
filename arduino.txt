@@ -6,12 +6,13 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // Software serial for communication with NodeMCU
-SoftwareSerial esp8266(0, 1); // RX, TX
+SoftwareSerial esp8266(7, 8); // RX=Pin7, TX=Pin8
 
 // Pin definitions
 const int MQ135_ANALOG = A0;
 const int MQ135_DIGITAL = 2;
 const int BUZZER_PIN = 3;
+
 
 // Variables
 int gasValue = 0;
@@ -23,8 +24,8 @@ const unsigned long readingInterval = 1000; // Read every 1 second
 const unsigned long sendInterval = 2000;    // Send to ESP every 2 seconds
 
 // Calibration values (adjust based on your environment)
-const int FRESH_THRESHOLD = 200;  // Below this = fresh
-const int SPOILED_THRESHOLD = 600; // Above this = spoiled
+const int FRESH_THRESHOLD = 20;   // Below this = fresh (lowered for higher sensitivity)
+const int SPOILED_THRESHOLD = 50; // Above this = spoiled (your requested value)
 
 void setup() {
   Serial.begin(9600);
@@ -78,7 +79,7 @@ void loop() {
   
   // Send data to ESP8266
   if (currentTime - lastSend >= sendInterval) {
-    sendDataToESP();
+    sendData();
     lastSend = currentTime;
   }
   
@@ -95,20 +96,15 @@ void loop() {
 void readSensor() {
   gasValue = analogRead(MQ135_ANALOG);
   
-  // Convert to freshness level (0-100 scale)
+  // Convert to freshness level (100-0 scale, where 100 = fresh, 0 = spoiled)
   if (gasValue <= FRESH_THRESHOLD) {
-    freshnessLevel = map(gasValue, 0, FRESH_THRESHOLD, 0, 30);
+    freshnessLevel = map(gasValue, 0, FRESH_THRESHOLD, 100, 75);  // 100-75% = FRESH
   } else if (gasValue <= SPOILED_THRESHOLD) {
-    freshnessLevel = map(gasValue, FRESH_THRESHOLD, SPOILED_THRESHOLD, 30, 75);
+    freshnessLevel = map(gasValue, FRESH_THRESHOLD, SPOILED_THRESHOLD, 75, 25); // 75-25% = degrading
   } else {
-    freshnessLevel = map(gasValue, SPOILED_THRESHOLD, 1023, 75, 100);
-    freshnessLevel = min(freshnessLevel, 100);
+    freshnessLevel = map(gasValue, SPOILED_THRESHOLD, 1023, 25, 0);
+    freshnessLevel = max(freshnessLevel, 0); // Ensure it doesn't go below 0
   }
-  
-  Serial.print("Gas Value: ");
-  Serial.print(gasValue);
-  Serial.print(" | Freshness: ");
-  Serial.println(freshnessLevel);
 }
 
 void updateDisplay() {
@@ -119,24 +115,24 @@ void updateDisplay() {
   lcd.print("%");
   
   lcd.setCursor(0, 1);
-  if (freshnessLevel < 30) {
+  if (freshnessLevel >= 75) {        // 75-100% = FRESH
     lcd.print("Status: FRESH");
-  } else if (freshnessLevel < 50) {
+  } else if (freshnessLevel >= 60) { // 60-74% = GOOD
     lcd.print("Status: GOOD");
-  } else if (freshnessLevel < 70) {
+  } else if (freshnessLevel >= 40) { // 40-59% = FAIR
     lcd.print("Status: FAIR");
-  } else if (freshnessLevel < 75) {
+  } else if (freshnessLevel >= 25) { // 25-39% = POOR
     lcd.print("Status: POOR");
-  } else {
+  } else {                           // 0-24% = SPOILED
     lcd.print("Status: SPOILED");
   }
 }
 
 void checkFreshness() {
-  if (freshnessLevel >= 75 && !alertTriggered) {
+  if (gasValue >= SPOILED_THRESHOLD && !alertTriggered) {  // Changed to use gasValue directly
     triggerAlert();
     alertTriggered = true;
-  } else if (freshnessLevel < 70) {
+  } else if (gasValue < (SPOILED_THRESHOLD - 5)) {  // Add small buffer to prevent flickering
     alertTriggered = false;
     digitalWrite(BUZZER_PIN, LOW);
   }
@@ -160,17 +156,28 @@ void triggerAlert() {
   Serial.println("ALERT: Fish is spoiled!");
 }
 
-void sendDataToESP() {
-  // Send JSON data to ESP8266
-  String data = "{\"freshness\":" + String(freshnessLevel) + 
-                ",\"gas\":" + String(gasValue) + 
-                ",\"alert\":" + String(alertTriggered) + "}";
-  esp8266.println(data);
+void sendData() {
+  esp8266.print("{\"freshness\":");
+  esp8266.print(freshnessLevel);
+  esp8266.print(",\"gas\":");
+  esp8266.print(gasValue);
+  esp8266.print(",\"alert\":");
+  esp8266.print(alertTriggered ? "true" : "false");
+  esp8266.println("}");
+  
+  // Debug output to Serial Monitor
+  Serial.print("Sent to NodeMCU: {\"freshness\":");
+  Serial.print(freshnessLevel);
+  Serial.print(",\"gas\":");
+  Serial.print(gasValue);
+  Serial.print(",\"alert\":");
+  Serial.print(alertTriggered ? "true" : "false");
+  Serial.println("}");
 }
 
 void processESPCommand(String command) {
   if (command == "GET_STATUS") {
-    sendDataToESP();
+    sendData();
   } else if (command == "RESET_ALERT") {
     alertTriggered = false;
     digitalWrite(BUZZER_PIN, LOW);

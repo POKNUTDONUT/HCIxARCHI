@@ -11,7 +11,7 @@ const char* password = "frishko123";
 AsyncWebServer server(80);
 
 // Communication with Arduino
-SoftwareSerial arduino(4, 5); // RX=D2, TX=D1
+SoftwareSerial arduino(4, 5); // RX=D2(GPIO4), TX=D1(GPIO5)
 
 // Data variables
 int currentFreshness = 0;
@@ -102,6 +102,8 @@ void setupWebServer() {
 }
 
 void parseArduinoData(String data) {
+  Serial.println("Raw data received: " + data); // DEBUG LINE
+  
   // Parse JSON data from Arduino
   DynamicJsonDocument doc(200);
   DeserializationError error = deserializeJson(doc, data);
@@ -112,329 +114,93 @@ void parseArduinoData(String data) {
     currentAlert = doc["alert"];
     lastDataReceived = millis();
     
-    Serial.println("Data received - Freshness: " + String(currentFreshness) + 
+    Serial.println("Data parsed - Freshness: " + String(currentFreshness) + 
                    " Gas: " + String(currentGasValue) + 
                    " Alert: " + String(currentAlert));
+  } else {
+    Serial.println("JSON parse error: " + String(error.c_str())); // DEBUG LINE
   }
 }
 
 String getMainPageHTML() {
-  return R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FRISHKO IoT Device</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #001b3d 0%, #003366 20%, #0066cc 60%, #3399ff 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            padding: 20px;
-        }
-        .container {
-            max-width: 400px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 30px;
-            padding: 40px 30px;
-            text-align: center;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-        }
-        .title {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 8px rgba(0, 51, 102, 0.8);
-        }
-        .freshness-display {
-            font-size: 64px;
-            font-weight: bold;
-            margin: 30px 0;
-            text-shadow: 2px 2px 8px rgba(0, 51, 102, 0.8);
-        }
-        .status-text {
-            font-size: 18px;
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 15px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        .btn {
-            padding: 15px 25px;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: block;
-        }
-        .btn-primary {
-            background: linear-gradient(45deg, #4CAF50, #66BB6A);
-            color: white;
-        }
-        .btn-warning {
-            background: linear-gradient(45deg, #FF9800, #FFB74D);
-            color: white;
-        }
-        .btn-alert {
-            background: linear-gradient(45deg, #F44336, #EF5350);
-            color: white;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        .connection-status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: blink 2s infinite;
-        }
-        .connected { background: #4CAF50; }
-        .disconnected { background: #F44336; }
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
-        }
-    </style>
-</head>
-<body>
-    <div class="connection-status" id="connectionStatus"></div>
-    <div class="container">
-        <div class="title">FRISHKO</div>
-        <div class="freshness-display" id="freshnessValue">--</div>
-        <div class="status-text" id="statusText">Connecting to device...</div>
-        <div class="controls">
-            <button class="btn btn-primary" onclick="resetAlert()">Reset Alert</button>
-            <button class="btn btn-warning" onclick="calibrate()">Calibrate Sensor</button>
-            <a href="/alert" class="btn btn-alert" id="alertBtn" style="display:none;">VIEW ALERT</a>
-        </div>
-    </div>
-
-    <script>
-        function updateData() {
-            fetch('/api/data')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('freshnessValue').textContent = data.freshness + '%';
-                    
-                    const statusEl = document.getElementById('statusText');
-                    const connectionEl = document.getElementById('connectionStatus');
-                    const alertBtn = document.getElementById('alertBtn');
-                    const freshnessEl = document.getElementById('freshnessValue');
-                    
-                    // Update connection status
-                    if (data.connected) {
-                        connectionEl.className = 'connection-status connected';
-                    } else {
-                        connectionEl.className = 'connection-status disconnected';
-                        statusEl.textContent = 'Device disconnected';
-                        return;
-                    }
-                    
-                    // Update status and colors
-                    if (data.freshness < 30) {
-                        statusEl.textContent = 'Fish Status: FRESH';
-                        freshnessEl.style.color = '#4CAF50';
-                    } else if (data.freshness < 50) {
-                        statusEl.textContent = 'Fish Status: GOOD';
-                        freshnessEl.style.color = '#8BC34A';
-                    } else if (data.freshness < 70) {
-                        statusEl.textContent = 'Fish Status: FAIR';
-                        freshnessEl.style.color = '#FFC107';
-                    } else if (data.freshness < 75) {
-                        statusEl.textContent = 'Fish Status: POOR';
-                        freshnessEl.style.color = '#FF9800';
-                    } else {
-                        statusEl.textContent = 'Fish Status: SPOILED';
-                        freshnessEl.style.color = '#F44336';
-                    }
-                    
-                    // Show alert button if needed
-                    if (data.alert) {
-                        alertBtn.style.display = 'block';
-                    } else {
-                        alertBtn.style.display = 'none';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('statusText').textContent = 'Connection error';
-                });
-        }
-        
-        function resetAlert() {
-            fetch('/api/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => console.log('Alert reset:', data));
-        }
-        
-        function calibrate() {
-            fetch('/api/calibrate', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert('Calibration started. Please ensure sensor is in clean air.');
-                });
-        }
-        
-        // Update every 2 seconds
-        setInterval(updateData, 2000);
-        updateData(); // Initial load
-    </script>
-</body>
-</html>
-)";
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<title>FRISHKO Device</title>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<style>";
+  html += "body { font-family: Arial; text-align: center; background: #001b3d; color: white; padding: 20px; }";
+  html += ".container { max-width: 400px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; }";
+  html += ".title { font-size: 36px; margin-bottom: 20px; }";
+  html += ".freshness { font-size: 64px; font-weight: bold; margin: 30px 0; }";
+  html += ".status { font-size: 18px; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; }";
+  html += ".btn { padding: 15px 25px; margin: 10px; border: none; border-radius: 25px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; }";
+  html += ".btn-primary { background: #4CAF50; color: white; }";
+  html += ".btn-warning { background: #FF9800; color: white; }";
+  html += ".btn-alert { background: #F44336; color: white; animation: pulse 2s infinite; }";
+  html += "@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }";
+  html += ".connection { position: absolute; top: 20px; right: 20px; width: 12px; height: 12px; border-radius: 50%; }";
+  html += ".connected { background: #4CAF50; }";
+  html += ".disconnected { background: #F44336; }";
+  html += "</style></head><body>";
+  html += "<div class='connection' id='status'></div>";
+  html += "<div class='container'>";
+  html += "<div class='title'>FRISHKO</div>";
+  html += "<div class='freshness' id='freshness'>--</div>";
+  html += "<div class='status' id='statusText'>Connecting...</div>";
+  html += "<button class='btn btn-primary' onclick='resetAlert()'>Reset Alert</button>";
+  html += "<button class='btn btn-warning' onclick='calibrate()'>Calibrate</button>";
+  html += "<a href='/alert' class='btn btn-alert' id='alertBtn' style='display:none;'>VIEW ALERT</a>";
+  html += "</div>";
+  html += "<script>";
+  html += "function updateData() {";
+  html += "fetch('/api/data').then(r => r.json()).then(data => {";
+  html += "document.getElementById('freshness').textContent = data.freshness + '%';";
+  html += "var status = document.getElementById('status');";
+  html += "var statusText = document.getElementById('statusText');";
+  html += "var alertBtn = document.getElementById('alertBtn');";
+  html += "var freshness = document.getElementById('freshness');";
+  html += "if (data.connected) {";
+  html += "status.className = 'connection connected';";
+  html += "if (data.freshness >= 75) { statusText.textContent = 'Fish Status: FRESH'; freshness.style.color = '#4CAF50'; }";
+  html += "else if (data.freshness >= 60) { statusText.textContent = 'Fish Status: GOOD'; freshness.style.color = '#8BC34A'; }";
+  html += "else if (data.freshness >= 40) { statusText.textContent = 'Fish Status: FAIR'; freshness.style.color = '#FFC107'; }";
+  html += "else if (data.freshness >= 25) { statusText.textContent = 'Fish Status: POOR'; freshness.style.color = '#FF9800'; }";
+  html += "else { statusText.textContent = 'Fish Status: SPOILED'; freshness.style.color = '#F44336'; }";
+  html += "} else { status.className = 'connection disconnected'; statusText.textContent = 'Device disconnected'; }";
+  html += "if (data.alert) { alertBtn.style.display = 'inline-block'; } else { alertBtn.style.display = 'none'; }";
+  html += "});";
+  html += "}";
+  html += "function resetAlert() { fetch('/api/reset', {method: 'POST'}); }";
+  html += "function calibrate() { fetch('/api/calibrate', {method: 'POST'}); alert('Calibration started'); }";
+  html += "setInterval(updateData, 2000);";
+  html += "updateData();";
+  html += "</script></body></html>";
+  return html;
 }
 
 String getAlertPageHTML() {
-  return R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FRISHKO Alert</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #FF5722 0%, #FF7043 50%, #FFAB91 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            animation: alertPulse 2s ease-in-out infinite;
-        }
-        @keyframes alertPulse {
-            0%, 100% { background: linear-gradient(135deg, #FF5722 0%, #FF7043 50%, #FFAB91 100%); }
-            50% { background: linear-gradient(135deg, #F44336 0%, #FF5722 50%, #FF7043 100%); }
-        }
-        .alert-content {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 25px;
-            padding: 40px 30px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-            max-width: 350px;
-            width: 100%;
-            text-align: center;
-        }
-        .alert-icon {
-            width: 120px;
-            height: 120px;
-            background: #FF5722;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 30px;
-            animation: shake 0.5s ease-in-out infinite;
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-4px); }
-            75% { transform: translateX(4px); }
-        }
-        .warning-symbol {
-            color: white;
-            font-size: 60px;
-            font-weight: bold;
-        }
-        .alert-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: #D32F2F;
-            margin-bottom: 15px;
-        }
-        .alert-message {
-            font-size: 16px;
-            color: #424242;
-            margin-bottom: 30px;
-            line-height: 1.5;
-        }
-        .alert-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .alert-button {
-            padding: 18px 30px;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            text-decoration: none;
-            display: block;
-        }
-        .alert-button.primary {
-            background: linear-gradient(45deg, #FF5722, #FF7043);
-            color: white;
-            box-shadow: 0 8px 20px rgba(255, 87, 34, 0.4);
-        }
-        .alert-button.secondary {
-            background: linear-gradient(45deg, #607D8B, #78909C);
-            color: white;
-            box-shadow: 0 8px 20px rgba(96, 125, 139, 0.4);
-        }
-        .alert-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 25px rgba(255, 87, 34, 0.6);
-        }
-    </style>
-</head>
-<body>
-    <div class="alert-content">
-        <div class="alert-icon">
-            <div class="warning-symbol">⚠</div>
-        </div>
-        <div class="alert-title">FISH NOT FRESH!</div>
-        <div class="alert-message">
-            The fish sample shows high levels of spoilage gases. 
-            <br><br>
-            <strong>Do not consume this fish</strong> as it may pose serious health risks.
-        </div>
-        <div class="alert-buttons">
-            <button class="alert-button primary" onclick="resetAndReturn()">RESET & TEST NEW SAMPLE</button>
-            <a href="/" class="alert-button secondary">RETURN TO MONITOR</a>
-        </div>
-    </div>
-
-    <script>
-        function resetAndReturn() {
-            fetch('/api/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    window.location.href = '/';
-                });
-        }
-    </script>
-</body>
-</html>
-)";
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<title>FRISHKO Alert</title>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<style>";
+  html += "body { font-family: Arial; text-align: center; background: #FF5722; color: white; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }";
+  html += ".container { max-width: 350px; background: rgba(255,255,255,0.95); padding: 40px; border-radius: 20px; color: #333; }";
+  html += ".icon { width: 100px; height: 100px; background: #FF5722; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }";
+  html += ".icon-text { color: white; font-size: 50px; font-weight: bold; }";
+  html += ".title { font-size: 28px; font-weight: bold; color: #D32F2F; margin-bottom: 15px; }";
+  html += ".message { font-size: 16px; margin-bottom: 30px; line-height: 1.5; }";
+  html += ".btn { padding: 15px 25px; margin: 10px; border: none; border-radius: 25px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; }";
+  html += ".btn-primary { background: #FF5722; color: white; }";
+  html += ".btn-secondary { background: #607D8B; color: white; }";
+  html += "</style></head><body>";
+  html += "<div class='container'>";
+  html += "<div class='icon'><div class='icon-text'>!</div></div>";
+  html += "<div class='title'>FISH NOT FRESH!</div>";
+  html += "<div class='message'>The fish sample shows high levels of spoilage gases.<br><br><strong>Do not consume this fish</strong> as it may pose serious health risks.</div>";
+  html += "<button class='btn btn-primary' onclick='resetAndReturn()'>RESET ALERT</button>";
+  html += "<a href='/' class='btn btn-secondary'>RETURN TO MONITOR</a>";
+  html += "</div>";
+  html += "<script>";
+  html += "function resetAndReturn() { fetch('/api/reset', {method: 'POST'}).then(() => { window.location.href = '/'; }); }";
+  html += "</script></body></html>";
+  return html;
 }
